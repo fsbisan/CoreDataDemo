@@ -12,8 +12,9 @@ class StorageManager {
     
     static let shared = StorageManager()
     
-    private init() {}
     var taskList: [Task] = []
+    
+    private init() {}
     
     // MARK: - Core Data stack
     var persistentContainer: NSPersistentContainer = {
@@ -26,6 +27,16 @@ class StorageManager {
         return container
     }()
 
+    func fetchData() {
+        let fetchRequest = Task.fetchRequest()
+        
+        do {
+            taskList = try persistentContainer.viewContext.fetch(fetchRequest)
+        } catch let error {
+            print("Failed to fetch data", error)
+        }
+    }
+    
     // MARK: - Core Data Saving support
     func saveContext() {
         let context = persistentContainer.viewContext
@@ -53,4 +64,5 @@ class StorageManager {
             }
         }
     }
+    
 }

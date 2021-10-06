@@ -20,7 +20,7 @@ class TaskListViewController: UITableViewController {
         view.backgroundColor = .white
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellID)
         setupNavigationBar()
-        fetchData()
+        StorageManager.shared.fetchData()
     }
 
     private func setupNavigationBar() {
@@ -52,16 +52,6 @@ class TaskListViewController: UITableViewController {
     
     @objc private func addNewTask() {
         showAlert(with: "New Task", and: "What do you want to do?")
-    }
-    
-    private func fetchData() {
-        let fetchRequest = Task.fetchRequest()
-        
-        do {
-            StorageManager.shared.taskList = try context.fetch(fetchRequest)
-        } catch let error {
-            print("Failed to fetch data", error)
-        }
     }
     
     private func showAlert(with title: String, and message: String) {
@@ -105,7 +95,7 @@ extension TaskListViewController {
 // MARK: - TaskViewControllerDelegate
 extension TaskListViewController: TaskViewControllerDelegate {
     func reloadData() {
-        fetchData()
+        StorageManager.shared.fetchData()
         tableView.reloadData()
     }
 }
