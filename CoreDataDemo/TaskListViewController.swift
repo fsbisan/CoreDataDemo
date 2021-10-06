@@ -12,6 +12,7 @@ protocol TaskViewControllerDelegate {
 }
 
 class TaskListViewController: UITableViewController {
+    // MARK: - Private Properties
     private let context = StorageManager.shared.persistentContainer.viewContext
     private let cellID = "task"
 
@@ -22,7 +23,8 @@ class TaskListViewController: UITableViewController {
         setupNavigationBar()
         StorageManager.shared.fetchData()
     }
-
+    
+    // MARK: - Private Methods
     private func setupNavigationBar() {
         title = "Task List"
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -54,12 +56,18 @@ class TaskListViewController: UITableViewController {
         showAlert(with: "New Task", and: "What do you want to do?")
     }
     
+    private func addCell() {
+        let cellIndex = IndexPath(row: StorageManager.shared.taskList.count - 1, section: 0)
+        tableView.insertRows(at: [cellIndex], with: .automatic)
+    }
+    
+// MARK: - Alerts
     private func showAlert(with title: String, and message: String) {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
             guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
             StorageManager.shared.save(task, context: self.context)
-            self.appCell()
+            self.addCell()
         }
         let cancelAction = UIAlertAction(title: "Cancel", style: .destructive)
         alert.addAction(saveAction)
@@ -70,9 +78,23 @@ class TaskListViewController: UITableViewController {
         present(alert, animated: true)
     }
     
-    private func appCell() {
-        let cellIndex = IndexPath(row: StorageManager.shared.taskList.count - 1, section: 0)
-        tableView.insertRows(at: [cellIndex], with: .automatic)
+    private func showUpdateAlert(with title: String, and message: String, textFieldText: String,
+                                 indexPath: IndexPath) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        let saveAction = UIAlertAction(title: "Save", style: .default) { _ in
+            guard let task = alert.textFields?.first?.text, !task.isEmpty else { return }
+            StorageManager.shared.update(task, context: self.context, removeIndex: indexPath.row)
+            self.tableView.reloadRows(at: [indexPath], with: .automatic)
+        }
+        let cancelAction = UIAlertAction(title: "Cancel", style: .destructive) { _ in
+            self.tableView.deselectRow(at: indexPath, animated: true)
+        }
+        alert.addAction(saveAction)
+        alert.addAction(cancelAction)
+        alert.addTextField { textField in
+            textField.text = textFieldText
+        }
+        present(alert, animated: true)
     }
 }
 
@@ -89,6 +111,19 @@ extension TaskListViewController {
         content.text = task.title
         cell.contentConfiguration = content
         return cell
+    }
+    
+    override func tableView(_ tableView: UITableView, trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
+        let someAction = UIContextualAction(style: .destructive, title: "Delete") { action, view, success in
+            StorageManager.shared.delete(context: self.context, removeIndex: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+        }
+        return UISwipeActionsConfiguration(actions: [someAction])
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard let taskTitle = StorageManager.shared.taskList[indexPath.row].title else { return }
+        showUpdateAlert(with: "Update Task", and: "What do you want to do?", textFieldText: taskTitle, indexPath: indexPath)
     }
 }
 
