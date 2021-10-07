@@ -9,11 +9,11 @@ import CoreData
 
 class StorageManager {
     
-    var taskList: [Task] = []
+    var context: NSManagedObjectContext {
+        persistentContainer.viewContext
+    }
     
     static let shared = StorageManager()
-    
-    private init() {}
     
     // MARK: - Core Data stack
     var persistentContainer: NSPersistentContainer = {
@@ -26,11 +26,16 @@ class StorageManager {
         return container
     }()
 
-    func fetchData() {
+    private init() {}
+
+    func fetchData(completion: @escaping ([Task]) -> Void) {
         let fetchRequest = Task.fetchRequest()
         
         do {
-            taskList = try persistentContainer.viewContext.fetch(fetchRequest)
+            let taskList = try persistentContainer.viewContext.fetch(fetchRequest)
+            DispatchQueue.global().async {
+                completion(taskList)
+            }
         } catch let error {
             print("Failed to fetch data", error)
         }
@@ -38,8 +43,7 @@ class StorageManager {
     
     // MARK: - Core Data Editing support
     func saveContext() {
-        let context = persistentContainer.viewContext
-        if context.hasChanges {
+        if self.context.hasChanges {
             do {
                 try context.save()
             } catch {
@@ -49,48 +53,22 @@ class StorageManager {
         }
     }
     
-    func save(_ taskName: String, context: NSManagedObjectContext)  {
-        guard let entityDescription = NSEntityDescription.entity(forEntityName: "Task", in: context) else { return }
-        guard let task = NSManagedObject(entity: entityDescription, insertInto: context) as? Task else { return }
+    func save(_ taskName: String)  {
+        guard let entityDescription = NSEntityDescription.entity(forEntityName: "Task", in: self.context) else { return }
+        guard let task = NSManagedObject(entity: entityDescription, insertInto: self.context) as? Task else { return }
         task.title = taskName
-        taskList.append(task)
-        
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch let error {
-                print(error)
-            }
-        }
+        saveContext()
     }
     
-    func update(_ taskName: String, context: NSManagedObjectContext, removeIndex: Int )  {
-        guard let entityDescription = NSEntityDescription.entity(forEntityName: "Task", in: context) else { return }
-        guard let task = NSManagedObject(entity: entityDescription, insertInto: context) as? Task else { return }
+    func update(_ taskName: String, task: Task )  {
         task.title = taskName
-        taskList.remove(at: removeIndex)
-        taskList.insert(task, at: removeIndex)
-        
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch let error {
-                print(error)
-            }
-        }
+        self.context.refresh(task, mergeChanges: true)
+        saveContext()
     }
     
-    func delete(context: NSManagedObjectContext, removeIndex: Int )  {
-        context.delete(taskList[removeIndex])
-        taskList.remove(at: removeIndex)
-        
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch let error {
-                print(error)
-            }
-        }
+    func delete(removingTask: Task )  {
+        self.context.delete(removingTask)
+        saveContext()
     }
     
 }
